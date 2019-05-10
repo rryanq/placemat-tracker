@@ -1,0 +1,16 @@
+=====================
+placemat-tracker Docs
+=====================
+
+placemat-tracker is a small project that I have created to help me with accounting for the sales of my Quin's Coins Coin Roll Hunting Placemats.
+These placemats are sold via paypal which allows me to retrieve receipts from each and every purchase.
+Once I retrieve these receipts, I can use this program to extract information from them to aide me with both packaging and accounting for each order.
+
+This project has two files that do the majority of the work:
+1. convert_orders_to_txt: a bash script that converts paypal receipts from .pdf to .txt
+2. process_orders.py: a python script that extracts data from .txt paypal receipts and outputs statistics used in packaging and accounting
+
+In addition to these files, there are multiple directories that are used for various tasks such as tracking packages that had to be re-sent or finding cutoffs between different placemat runs.
+  - These directories are left empty in the public project repository and populated locally.
+
+Note: This program is not a stand-alone project. It works in conjunction with various spreadsheets that are stored locally to track the sales of the Quin's Coins Coin Roll Hunting Placemats.

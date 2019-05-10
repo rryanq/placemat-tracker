@@ -1,0 +1,33 @@
+#!/bin/bash
+# This script converts the contents of paypal order files to .txt files
+# so that they can be further operated on
+
+OUT_DIR="paypal_orders_txt/"
+IN_DIR="current_paypal_orders_pdf/"
+# To approximate total revenue, uncomment below
+# IN_DIR="paypal_orders_pdf_full/"
+# To find cut-offs for penny/nickel runs, uncomment below and
+# populate the temp folder using a guess-and-check method
+# IN_DIR="temp_paypal_orders_pdf/"
+
+rm -rf $OUT_DIR*
+for f in `ls $IN_DIR* | sort -V`
+do
+  # Re-use the name of the input file
+  out_file=${f#*/}
+  # replace .pdf with .txt when naming the output file
+  converted_out_file="${out_file%.pdf}.txt"
+  if [ ! -f $OUT_DIR$converted_out_file ]; then
+    f_stripped="${f/$'\r'/}"
+    # If the file is already a txt file, just copy it over to the out directory
+    if [ ${f_stripped: -4} == ".txt" ]; then
+      cp $f_stripped $OUT_DIR$converted_out_file
+    # If the file has a .ini extension, ignore it
+    elif [ ${f_stripped: -4} == ".ini" ]; then
+      : # do nothing
+    # In all other cases, attempt to convert the file to a .txt file
+    else
+      gs -sDEVICE=txtwrite -o $OUT_DIR$converted_out_file $f_stripped > /dev/null
+    fi
+  fi
+done
