@@ -5,7 +5,7 @@
 OUT_DIR="paypal_orders_txt/"
 IN_DIR="current_paypal_orders_pdf/"
 # To approximate total revenue, uncomment below
-# IN_DIR="paypal_orders_pdf_full/"
+# IN_DIR="all_paypal_orders_pdf/"
 # To find cut-offs for penny/nickel runs, uncomment below and
 # populate the temp folder using a guess-and-check method
 # IN_DIR="temp_paypal_orders_pdf/"
