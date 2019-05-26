@@ -110,8 +110,6 @@ penny_placemats_needed = int(order_types['p1'] + (2 * order_types['p2']) + (3 * 
 nickel_placemats_needed = order_types['n1'] + (2 * order_types['n2']) + order_types['p1n1']
 orders = sorted(orders, key=lambda k: k['order_type'])
 
-print(fees)
-
 """Print out all addresses."""
 print("\nADDRESSES\n=============================")
 for order in orders:
