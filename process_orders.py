@@ -58,14 +58,14 @@ def main(verbose):
                     order_type = "P1N1"
                 elif "$15" in text:
                     if "nickel" in text or "Nickel" in text:
-                        raise exception()
+                        raise Exception()
                     # This is probably a P1 purchase from paypal.me. This is how I accepted payment early on
                     order_types['p1'] = order_types['p1'] + 1
                     order_type = "P1"
                 elif "$25" in text:
                     # This is probably a P2 purchase from paypal.me. This is how I accepted payment early on
                     if "nickel" in text or "Nickel" in text:
-                        raise exception()
+                        raise Exception()
                     order_types['p2'] = order_types['p2'] + 1
                     order_type = "P2"
                 elif "$30" in text:
@@ -80,7 +80,7 @@ def main(verbose):
                         break
                 # Unprocessable order
                 else:
-                    raise exception()
+                    raise Exception()
 
                 # Retrieve addresses
                 name_text = text.split("Ship to:", 1)[1]
@@ -97,13 +97,13 @@ def main(verbose):
                     elif order_type == "P2" or order_type == "N2" or order_type == "P1N1":
                         fees["f2ca"] = fees["f2ca"] + 1
                     else:
-                        raise exception()
+                        raise Exception()
                 else:
-                    raise exception()
+                    raise Exception()
                 address = address.replace("\n ", "\n")
                 orders.append({"name": name, "address": address, "order_type": order_type})
                 total_packages = total_packages + 1
-            except:
+            except Exception as e:
                 print("Unable to process the following file: {}".format(file))
 
     fees["f1us"] = order_types['p1'] + order_types['n1'] - fees['f1ca']
