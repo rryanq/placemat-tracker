@@ -192,10 +192,12 @@ Silver Stacking placemats sold at regular price: {}
 
     emails = list(dict.fromkeys(emails))
     emails_string = ','.join(emails)
-    # TODO: there may be more unicode characters that I am missing- I just haven't got them all documented yet
     emails_string = emails_string.replace('ﬀ', 'ff')
     emails_string = emails_string.replace('ﬁ', 'fi')
     emails_string = emails_string.replace('ﬂ', 'fl')
+    emails_string = emails_string.replace('ﬃ', 'ffi')
+    emails_string = emails_string.replace('ﬄ', 'ffl')
+    emails_string = emails_string.replace('ﬅ', 'ft')
 
     print('emails: %s' % emails_string)
 
