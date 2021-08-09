@@ -87,14 +87,17 @@ def main(verbose):
                         order_type = 'P1N1S1'
                     # Unprocessable order
                     else:
-                        print('unprocessable order')
+                        print('unprocessable order: %s' % file)
                         print('order: %s' % order)
 
                     # Retrieve addresses
                     name = order.split("Ship from:", 1)[0].strip()
                     name = name.title()
                     email = order.split('Quinlan Productions LLC')[1].split('quinscoins@gmail.com')[0].strip()
-                    emails.append(email)
+                    if '@' not in email:
+                        print('WARNING: email address could not be parsed from file %s. Got: "%s"' % (file, email))
+                    else:
+                        emails.append(email)
                     split_order = order.split('Address:', 1)
                     if 'United States' in split_order[1]:
                         address = split_order[1].split('United States', 1)[0].strip().replace("  ", "")
@@ -177,17 +180,24 @@ Total Packages: {}
         silver_stacking_reg_price = order_types["s1"]
         penny_deal_price = (2 * order_types["p2"]) + order_types["p1n1"]
         nickel_deal_price = (2 * order_types["n2"]) + order_types["p1n1"]
+        silver_stacking_deal_price = (2 * order_types["s2"])
+        num_sold_at_variety_price = order_types["p1n1s1"]
         print(
 """
 ADDITIONAL STATS
 ===========================================
 Penny placemats sold at regular price: {}
 Penny placemats sold at deal price: {}
+Penny Placemats sold at variety price: {}
 Nickel placemats sold at regular price: {}
 Nickel placemats sold at deal price: {}
+Nickel Placemats sold at variety price: {}
 Silver Stacking placemats sold at regular price: {}
+Silver Stacking placemats sold at deal price: {}
+Silver Stacking Placemats sold at variety price: {}
 ===========================================
-""".format(penny_reg_price, penny_deal_price, nickel_reg_price, nickel_deal_price, silver_stacking_reg_price)
+""".format(penny_reg_price, penny_deal_price, num_sold_at_variety_price, nickel_reg_price, nickel_deal_price,
+    num_sold_at_variety_price, silver_stacking_reg_price, silver_stacking_deal_price, num_sold_at_variety_price)
         )
 
     emails = list(dict.fromkeys(emails))
