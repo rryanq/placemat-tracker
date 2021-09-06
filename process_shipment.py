@@ -10,14 +10,19 @@ import pdftotext
 @click.option('--verbose', '-v', is_flag=True, help="use this option to print more information for accounting purposes")
 def main(verbose):
     PAYPAL_ORDERS_PDF_DIR = "current_paypal_orders_pdf"
-    # Paypal fee for $15, $25, $40 orders within the U.S. (2.9% of transaction amount + $0.30)
-    FEE1_US = 0.74
-    FEE2_US = 1.03
-    FEE3_US = 1.46
-    # Paypal fee for $15, $25, $40 orders to Canada (4.4% of transaction amount + $0.30)
-    FEE1_CA = 0.96
-    FEE2_CA = 1.40
-    FEE3_CA = 2.06
+    # Paypal fee for $15, $25, $40 orders within the U.S. (3.49% of transaction amount + 
+    # $0.49, rounded to nearest cent)
+    FEE1_US = 1.01
+    FEE2_US = 1.36
+    FEE3_US = 1.89
+    # Paypal fee for $15, $25, $40 orders to Canada (3.49% of transaction amount (in USD) +
+    # $0.59 CAD, rounded to nearest cent). Note: $0.59 CAD may correspond to a different USD
+    # value depending on the exchange rate at the time of the transaciton, but assuming that
+    # the exchange rate is roughly 1 USD to 1.20 CAD results in a fee that is identical to
+    # the U.S. fees: 3.49% of transaction amount + $0.49 USD
+    FEE1_CA = 1.01
+    FEE2_CA = 1.36
+    FEE3_CA = 1.89
 
     # Process the orders
     emails = []
@@ -166,7 +171,7 @@ S2: {}
 P1N1S1: {}
 
 TOTAL REVENUE: ${:,.2f}
-REVENUE AFTER PAYPAL FEES: ${:,.2f}
+ESTIMATED REVENUE AFTER PAYPAL FEES: ${:,.2f}
 
 IMPORTANT STATS
 =============================
