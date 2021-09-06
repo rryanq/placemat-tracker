@@ -4,17 +4,12 @@
 from os import listdir, path
 import subprocess
 import click
+import pdftotext
 
 @click.command()
 @click.option('--verbose', '-v', is_flag=True, help="use this option to print more information for accounting purposes")
 def main(verbose):
-    # convert pdf paypal receipts into .txt files so that we can work with them
-    print("Converting paypal order receipts to txt...")
-    subprocess.call("./convert_orders_to_txt")
-    print("Done")
-
-    # specify the folder where the .txt paypal orders can be found
-    PAYPAL_ORDERS_TXT_DIR = "paypal_orders_txt"
+    PAYPAL_ORDERS_PDF_DIR = "current_paypal_orders_pdf"
     # Paypal fee for $15, $25, $40 orders within the U.S. (2.9% of transaction amount + $0.30)
     FEE1_US = 0.74
     FEE2_US = 1.03
@@ -45,11 +40,23 @@ def main(verbose):
     total_packages = 0
     order_type = ""
 
-    for filename in [f for f in listdir("./" + PAYPAL_ORDERS_TXT_DIR) if f != '.gitignore']:
-        file = path.dirname(path.realpath(__file__)) + '/' + PAYPAL_ORDERS_TXT_DIR + '/' + filename
-        with open(file, 'r') as f:
+    for filename in [f for f in listdir("./" + PAYPAL_ORDERS_PDF_DIR) if f != '.gitignore']:
+        file = path.dirname(path.realpath(__file__)) + '/' + PAYPAL_ORDERS_PDF_DIR + '/' + filename
+        with open(file, 'rb') as f:
+            if filename[-3:] == 'pdf':
+                try:
+                    pdf = pdftotext.PDF(f)
+                    # remove left-to-right markers after coverting pdf to text
+                    text = "\n\n".join(pdf).replace('\u200E', '')
+                except pdftotext.Error:
+                    print("unable to process file '%s'" % file)
+                    continue
+            elif filename[-3:] == 'txt':
+                text = f.read().decode('utf-8')
+            else:
+                print("unable to process file '%s' due to unknown extension: '%s'" % (file, filename[-3:]))
+                continue
             try:
-                text = f.read()
                 orders_text = [o for o in text.split('Ship to:') if o]
                 orders_text = orders_text[1:]
                 for order in orders_text:
@@ -202,6 +209,8 @@ Silver Stacking Placemats sold at variety price: {}
 
     emails = list(dict.fromkeys(emails))
     emails_string = ','.join(emails)
+
+    # replace latin "f" characters with their intended output strings
     emails_string = emails_string.replace('ﬀ', 'ff')
     emails_string = emails_string.replace('ﬁ', 'fi')
     emails_string = emails_string.replace('ﬂ', 'fl')
