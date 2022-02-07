@@ -2,7 +2,6 @@
 # Quin's Coins Coin Roll Hunting Placemats
 
 from os import listdir, path
-import subprocess
 import click
 import pdftotext
 
