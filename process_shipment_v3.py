@@ -5,6 +5,7 @@ import click
 import pdftotext
 from itertools import groupby
 from copy import deepcopy
+from difflib import SequenceMatcher
 
 
 class PaypalOrder():
@@ -40,17 +41,45 @@ class Package():
     shipping_class = None
 
 # the cost to ship a single hat varies, but is typically around $4
-SINGLE_HAT_SHIPPING_COST = 4.00
+# FIXME: not accounting for Canadian shipping rates!
+SINGLE_HAT_SHIPPING_COST_USA = 4.00
+# NOTE: I do not know if the below price is actually accurate. I will need to ship one of these
+# from the post office before I know for sure. This is pretty pricey!
+SINGLE_HAT_SHIPPING_COST_CANADA = 14.85
 NUM_PLACEMATS_TO_SHIPPING_COST = {
-    '1': 1.76,
-    '2': 2.36,
-    '3': 2.76,
-    '4': 3.36,
-    # packages of 5 or 6 placemats must be sent via priority which doesn't
-    # have a set price, but can cost up to $10
-    '5': 10.00,
-    '6': 10.00,
+    'USA': {
+        #'1': 1.76,
+        #'2': 2.36,
+        #'3': 2.76,
+        #'4': 3.36,
+        '1': 1.92,
+        '2': 2.64,
+        '3': 3.12,
+        '4': 3.84,
+        # packages of 5 or 6 placemats must be sent via priority which doesn't
+        # have a set price, but can cost up to $10
+        '5': 10.00,
+        '6': 10.00,
+    },
+    'Canada': {
+        # '1': 3.31,
+        # '2': 4.03,
+        # '3': 5.45,
+        # '4': 5.45,
+        # '5': 6.63,
+        '1': 3.52,
+        '2': 4.29,
+        '3': 5.80,
+        '4': 5.80,
+        '5': 7.05,
+        # 6 or more placemats to Canada cannot be done
+    }
 }
+
+
+def get_address_similarity_ratio(a1, a2):
+    return SequenceMatcher(None, a1, a2).ratio()
+
 
 @click.command()
 @click.option('--verbose', '-v', is_flag=True, help="use this option to print more information for accounting purposes")
@@ -79,7 +108,7 @@ def main(verbose):
                 print("unable to process file '%s' due to unknown extension: '%s'" % (file, filename[-3:]))
                 continue
             try:
-                orders_text = [o for o in text.split('Ship to:') if o]
+                orders_text = [o for o in text.split('Ship to') if o]
                 orders_text = orders_text[1:]
                 for order in orders_text:
                     Order = PaypalOrder()
@@ -132,7 +161,7 @@ def main(verbose):
                         print('order: %s' % order)
 
                     # Retrieve customer name, address, and email for each order
-                    customer_name = order.split("Ship from:", 1)[0].strip()
+                    customer_name = order.split("Ship from", 1)[0].strip()
                     Order.customer_name = customer_name.title()
                     email_address = order.split('Quinlan Productions LLC')[1].split('quinscoins@gmail.com')[0].strip()
                     if '@' not in email_address:
@@ -140,17 +169,19 @@ def main(verbose):
                         Order.email_address = None
                     else:
                         Order.email_address = email_address
-                    split_order = order.split('Address:', 1)
-                    if 'United States' in split_order[1]:
-                        address = split_order[1].split('United States', 1)[0].strip().replace("  ", "")
-                        Order.country = 'United States'
-                    elif 'Canada' in split_order[1]:
-                        address = split_order[1].split('Canada', 1)[0].strip().replace("  ", "")
+                    split_order = order.split('Address', 1)
+                    addresses = [l.lstrip() for l in split_order[1].split('Transaction ID', 1)[0].split('\n')]
+                    buyer_address = '\n'.join([l.split('     ')[0] for l in addresses])
+                    if 'United States' in buyer_address:
+                        address = buyer_address.split('United States', 1)[0].strip().replace("  ", "")
+                        Order.country = 'USA'
+                    elif 'Canada' in buyer_address:
+                        address = buyer_address.split('Canada', 1)[0].strip().replace("  ", "")
                         address = address + "\nCanada"
                         Order.country = 'Canada'
                     else:
                         raise Exception('Unknown Country')
-                    Order.mailing_address = address.replace("\n ", "\n")
+                    Order.mailing_address = address.replace("\n ", "\n").strip()
 
                     # Calculate costs
                     num_total_placemats = Order.num_penny_placemats + Order.num_nickel_placemats + Order.num_silver_stacking_placemats
@@ -166,7 +197,7 @@ def main(verbose):
                         else:
                             # FIXME: add message
                             raise Exception()
-                    if Order.country == 'United States':
+                    if Order.country == 'USA':
                         Order.paypal_fees = (49 + round(0.0349 * Order.retail_price * 100)) / 100
                     if Order.country == 'Canada':
                         # Paypal fee for orders to Canada (3.49% of transaction amount (in USD) + $0.59 CAD,
@@ -185,17 +216,25 @@ def main(verbose):
                 if verbose:
                     print(e)
 
+    # FIXME: consider grouping by name instead because grouping by address is 
+    # looking like it will be too complicated
     # group paypal orders by address
     grouped_paypal_orders = groupby(
         sorted(paypal_orders, key = lambda p: p.mailing_address),
         key = lambda p: p.mailing_address,
     )
 
+    # debug
+    #for mailing_address, orders in grouped_paypal_orders:
+    #    print(mailing_address)
+    #    print(list(orders))
+
     for mailing_address, orders in grouped_paypal_orders:
         orders = list(orders)
         package = Package()
         package.mailing_address = mailing_address
         for o in orders:
+            package.country = o.country
             package.customer_name = o.customer_name
             package.email_address = o.email_address
             package.num_penny_placemats += o.num_penny_placemats
@@ -214,7 +253,12 @@ def main(verbose):
             hat_package.num_silver_stacking_placemats = 0
             hat_package.num_total_placemats = 0
             hat_package.order_code = 'H1'
-            hat_package.shipping_cost = SINGLE_HAT_SHIPPING_COST
+            if hat_package.country == 'USA':
+                hat_package.shipping_cost = SINGLE_HAT_SHIPPING_COST_USA
+            elif hat_package.country == 'Canada':
+                hat_package.shipping_cost = SINGLE_HAT_SHIPPING_COST_CANADA
+            else:
+                raise Exception('Unknown Country: %s' % hat_package.country)
             num_hats = hat_package.num_hats
             hat_package.num_hats = 1
             # FIXME: untested so far since no one has bought two hats at once
@@ -223,11 +267,18 @@ def main(verbose):
         if package.num_total_placemats > 0:
             placemat_package = deepcopy(package)
             placemat_package.num_hats = 0
-            if placemat_package.num_total_placemats > 6:
+            if placemat_package.country == 'USA' and placemat_package.num_total_placemats > 6:
                 # FIXME: what to do in this scenario? Need to divide placemats
                 # into separate packages in this case
-                raise Exception('unable to handle more than 6 placemats per address')
-            placemat_package.shipping_cost = NUM_PLACEMATS_TO_SHIPPING_COST[str(placemat_package.num_total_placemats)]
+                raise Exception('unable to ship more than 6 placemats in a single package within USA')
+            if placemat_package.country == 'Canada' and placemat_package.num_total_placemats > 5:
+                # FIXME: handle this situation better by splitting the shipment up
+                raise Exception('unable to ship more than 5 placemats in a single package to Canada')
+            placemat_package.shipping_cost = NUM_PLACEMATS_TO_SHIPPING_COST.get(placemat_package.country, {}).get(str(placemat_package.num_total_placemats))
+            if placemat_package.shipping_cost is None:
+                raise Exception('Unable to retrieve shipping cost for %s placemats to %s' % (
+                    placemat_package.num_total_placemats, placemat_package.country
+                ))
             placemat_package.order_code = '%s%s%s' % (
                 ('P' + str(placemat_package.num_penny_placemats)) if placemat_package.num_penny_placemats else '',
                 ('N' + str(placemat_package.num_nickel_placemats)) if placemat_package.num_nickel_placemats else '',
@@ -256,24 +307,35 @@ def main(verbose):
     # sort packages primarily by number of placemats in ascending order, then by alphebtical order
     sorted_packages = sorted(packages, key = lambda p: (p.num_total_placemats, p.order_code))
 
-    # remove after testing
+    # debug
     #for p in sorted_packages:
     #    print(p.__dict__)
 
+    duplicate_name_packages = {}
+    for i in sorted_packages:
+        for j in sorted_packages:
+            if i.customer_name == j.customer_name and i.mailing_address != j.mailing_address:
+                if duplicate_name_packages.get(i.customer_name):
+                    duplicate_name_packages[i.customer_name].extend([i.mailing_address, j.mailing_address])
+                else:
+                    duplicate_name_packages[i.customer_name] = [i.mailing_address, j.mailing_address]
+    for name in duplicate_name_packages.keys():
+        duplicate_name_packages[name] = list(set(duplicate_name_packages[name]))
+
     print("\nADDRESSES\n=============================")
     for p in sorted_packages:
-        print(
+        print(  
 """
 Order Type: %s%s
 %s
 %s
-""" % (
-        p.order_code,
-        ' (tracked)' if (p.shipping_class == 'priority' or p.num_hats > 0) else '',
-        p.customer_name,
-        p.mailing_address
-    )
-    )
+""" %       (
+                p.order_code,
+                ' (tracked)' if (p.shipping_class == 'priority' or p.num_hats > 0) else '',
+                p.customer_name,
+                p.mailing_address
+            )
+        )
     print("=============================\n")
 
     # print out all important stats
@@ -298,6 +360,16 @@ Shipping Cost: ${:,.2f}
 
     print('untracked emails: %s\n' % ', '.join(untracked_emails))
     print('tracked emails: %s\n' % ', '.join(tracked_emails))
+
+    if duplicate_name_packages:
+        for name, mailing_addresses in duplicate_name_packages.items():
+            if len(mailing_addresses) == 2:
+                address_similarity_ratio = get_address_similarity_ratio(mailing_addresses[0], mailing_addresses[1])
+                if address_similarity_ratio > 0.7:
+                    print(f"WARNING: mailing addresses for customer '{name}' have a high similarity ratio ({address_similarity_ratio:.2f}) indicating that these orders may need to be combined into a single package.")
+            else:
+                print(f"WARNING: customer '{name}' has more than 2 mailing addresses that are different. Be sure to analyze this case carefully.")
+
 
 if __name__ == "__main__":
     main()
