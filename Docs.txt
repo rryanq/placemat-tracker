@@ -6,8 +6,9 @@ REQUIREMENTS:
 set up a python3 virtual environment, then:
 ```
 sudo apt install build-essential libpoppler-cpp-dev pkg-config python3-dev
-env3/bin/pip install click
-env3/bin/pip install pdftotext
+sudo python3 -m venv env
+sudo env/bin/pip install click
+sudo env/bin/pip install pdftotext
 ```
 
 SUMMARY:
