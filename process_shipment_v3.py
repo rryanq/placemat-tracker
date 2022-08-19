@@ -5,7 +5,6 @@ import click
 import pdftotext
 from itertools import groupby
 from copy import deepcopy
-from difflib import SequenceMatcher
 
 
 class PaypalOrder():
@@ -75,11 +74,6 @@ NUM_PLACEMATS_TO_SHIPPING_COST = {
         # 6 or more placemats to Canada cannot be done
     }
 }
-
-
-def get_address_similarity_ratio(a1, a2):
-    return SequenceMatcher(None, a1, a2).ratio()
-
 
 @click.command()
 @click.option('--verbose', '-v', is_flag=True, help="use this option to print more information for accounting purposes")
@@ -362,13 +356,25 @@ Shipping Cost: ${:,.2f}
     print('tracked emails: %s\n' % ', '.join(tracked_emails))
 
     if duplicate_name_packages:
+        print('WARNING: the following names appeared more than once and contain different addresses (if they are virtually equivalent, feel free to ignore):')
         for name, mailing_addresses in duplicate_name_packages.items():
+            '''
             if len(mailing_addresses) == 2:
-                address_similarity_ratio = get_address_similarity_ratio(mailing_addresses[0], mailing_addresses[1])
-                if address_similarity_ratio > 0.7:
-                    print(f"WARNING: mailing addresses for customer '{name}' have a high similarity ratio ({address_similarity_ratio:.2f}) indicating that these orders may need to be combined into a single package.")
-            else:
-                print(f"WARNING: customer '{name}' has more than 2 mailing addresses that are different. Be sure to analyze this case carefully.")
+                import difflib
+                seq=difflib.SequenceMatcher(a=mailing_addresses[0].lower(), b=mailing_addresses[1].lower())
+                print(seq.ratio())
+                for i,s in enumerate(difflib.ndiff(a=mailing_addresses[0].lower(), b=mailing_addresses[1].lower())):
+                    if s[0]==' ': continue
+                    elif s[0]=='-':
+                        print(u'Delete "{}" from position {}'.format(s[-1],i))
+                    elif s[0]=='+':
+                        print(u'Add "{}" to position {}'.format(s[-1],i))
+            '''
+            print(
+                '=============================\nName: %s\n\nMailing Addresses:\n%s\n' %
+                (name, "\n\n".join(mailing_addresses))
+            )
+        print('=============================')
 
 
 if __name__ == "__main__":
