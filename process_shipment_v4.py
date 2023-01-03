@@ -140,6 +140,9 @@ def main(verbose):
                     if 'United States' in buyer_address:
                         address = buyer_address.split('United States', 1)[0].strip().replace("  ", "")
                         Order.country = 'USA'
+                    elif 'Puerto Rico' in buyer_address:
+                        address = buyer_address.split('Puerto Rico', 1)[0].strip().replace("  ", "")
+                        Order.country = 'USA'
                     elif 'Canada' in buyer_address:
                         address = buyer_address.split('Canada', 1)[0].strip().replace("  ", "")
                         address = address + "\nCanada"
