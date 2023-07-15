@@ -49,21 +49,24 @@ SINGLE_HAT_SHIPPING_COST_USA = 4.00
 SINGLE_HAT_SHIPPING_COST_CANADA = 14.85
 NUM_PLACEMATS_TO_SHIPPING_COST = {
     'USA': {
-        '1': 1.92,
-        '2': 2.64,
-        '3': 3.12,
-        '4': 3.84,
+        '1': 2.07,
+        '2': 2.79,
+        '3': 3.27,
+        '4': 3.99,
         # packages of 5 or 6 placemats must be sent via priority which doesn't
         # have a set price, but can cost up to $10
         '5': 10.00,
         '6': 10.00,
+        '7': 10.00,
+        '8': 10.00,
+        '9': 10.00,
     },
     'Canada': {
-        '1': 3.52,
-        '2': 4.29,
-        '3': 5.80,
-        '4': 5.80,
-        '5': 7.05,
+        '1': 3.82,
+        '2': 4.65,
+        '3': 6.29,
+        '4': 6.29,
+        '5': 7.65,
         # 6 or more placemats to Canada cannot be done
     }
 }
@@ -112,7 +115,8 @@ def main(verbose):
                         Order.order_code = item_code if not Order.order_code else Order.order_code + item_code
                         if item_code == 'P1':
                             Order.num_penny_placemats += item_quantity
-                        elif item_code == 'N1':
+                        # FIXME: why is N12 necessary? Am I using the wrong button on the website?
+                        elif item_code == 'N1' or item_code == 'N12':
                             Order.num_nickel_placemats += item_quantity
                         elif item_code == 'S1':
                             Order.num_silver_stacking_placemats += item_quantity
@@ -122,8 +126,11 @@ def main(verbose):
                             Order.num_silver_stacking_placemats += item_quantity
                         elif item_code == 'H1':
                             Order.num_hats += item_quantity
+                        elif item_code == 'Select':
+                            # FIXME: this is needed to handle N12 which I am not sure why it is still showing up
+                            pass
                         else:
-                            raise Exception()
+                            raise Exception(f'Unknown item code: {item_code}')
 
                     # Retrieve customer name, address, and email for each order
                     customer_name = order.split("Ship from", 1)[0].strip()
@@ -136,8 +143,13 @@ def main(verbose):
                         Order.email_address = email_address
                     split_order = order.split('Address', 1)
                     addresses = [l.lstrip() for l in split_order[1].split('Transaction ID', 1)[0].split('\n')]
-                    buyer_address = '\n'.join([l.split('     ')[0] for l in addresses])
+                    # FIXME: some addresses are getting 'United States' to appear twice at the bottom of the
+                    # address and others are not. Not sure why this is, but it even puts 'United States' at
+                    # the bottom of Canada addresses
+                    buyer_address = '\n'.join([l.split('     ')[0] for l in addresses][0:-1])
                     if 'United States' in buyer_address:
+                        #if 'Canada' in buyer_address:
+                        #    raise Exception(buyer_address)
                         address = buyer_address.split('United States', 1)[0].strip().replace("  ", "")
                         Order.country = 'USA'
                     elif 'Puerto Rico' in buyer_address:
@@ -148,7 +160,7 @@ def main(verbose):
                         address = address + "\nCanada"
                         Order.country = 'Canada'
                     else:
-                        raise Exception('Unknown Country')
+                        raise Exception('Unknown Country in address: %s' % buyer_address)
                     Order.mailing_address = address.replace("\n ", "\n").strip()
 
                     # Calculate costs
@@ -227,10 +239,10 @@ def main(verbose):
         if package.num_total_placemats > 0:
             placemat_package = deepcopy(package)
             placemat_package.num_hats = 0
-            if placemat_package.country == 'USA' and placemat_package.num_total_placemats > 6:
+            if placemat_package.country == 'USA' and placemat_package.num_total_placemats > 9:
                 # FIXME: what to do in this scenario? Need to divide placemats
                 # into separate packages in this case
-                raise Exception('unable to ship more than 6 placemats in a single package within USA')
+                raise Exception('unable to ship more than 9 placemats in a single package within USA')
             if placemat_package.country == 'Canada' and placemat_package.num_total_placemats > 5:
                 # FIXME: handle this situation better by splitting the shipment up
                 raise Exception('unable to ship more than 5 placemats in a single package to Canada')
@@ -244,7 +256,7 @@ def main(verbose):
                 ('N' + str(placemat_package.num_nickel_placemats)) if placemat_package.num_nickel_placemats else '',
                 ('S' + str(placemat_package.num_silver_stacking_placemats)) if placemat_package.num_silver_stacking_placemats else '',
             )
-            if placemat_package.num_total_placemats > 4 and placemat_package.num_total_placemats < 7:
+            if placemat_package.num_total_placemats > 4 and placemat_package.num_total_placemats < 10:
                 # priority mail
                 placemat_package.shipping_class = 'priority'
             else:
