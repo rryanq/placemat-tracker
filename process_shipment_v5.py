@@ -110,7 +110,7 @@ def main(verbose):
                     order_items = order.split("Amount", 1)[1].split("Shipping & Handling", 1)[0].strip()
                     for item in order_items.splitlines():
                         item_details = item.strip().split()
-                        item_code = item_details[0]
+                        item_code = item_details[-4]
                         item_quantity = int(item_details[-3])
                         Order.order_code = item_code if not Order.order_code else Order.order_code + item_code
                         if item_code == 'P1':
@@ -133,7 +133,7 @@ def main(verbose):
                             raise Exception(f'Unknown item code: {item_code}')
 
                     # Retrieve customer name, address, and email for each order
-                    customer_name = order.split("Ship from", 1)[0].strip()
+                    customer_name = order.split("Ship from", 1)[1].split('     ')[1]
                     Order.customer_name = customer_name.title()
                     email_address = order.split('Quinlan Productions LLC')[1].split('quinscoins@gmail.com')[0].strip()
                     if '@' not in email_address:
@@ -141,15 +141,36 @@ def main(verbose):
                         Order.email_address = None
                     else:
                         Order.email_address = email_address
-                    split_order = order.split('Address', 1)
-                    addresses = [l.lstrip() for l in split_order[1].split('Transaction ID', 1)[0].split('\n')]
-                    # FIXME: some addresses are getting 'United States' to appear twice at the bottom of the
-                    # address and others are not. Not sure why this is, but it even puts 'United States' at
-                    # the bottom of Canada addresses
+                    split_order = order.split('Address', 2)[2].split('Item Description', 1)[0].split('\n')
+                    addresses = [l.lstrip() for l in split_order]
+                    # if any(['Spc 123' in a for a in addresses]):
+                    #raise Exception(addresses)
+                    # [
+                    # '1234 Madeup rd.',
+                    # 'courtenay BC V9J 1R7                  Address     PO Box 131165',
+                    # 'Canada                                            Ann Arbor, MI 48113',
+                    # 'United States',
+                    # ''
+                    # ]
+
+                    # [
+                    # '123 Fake Rd',
+                    # 'Spc 123                                Address      PO Box 131165',
+                    # 'Corona, CA 92882                                   Ann Arbor, MI 48113',
+                    # 'United States                                      United States',
+                    # ''
+                    # ]
+
+                    # [
+                    # '456 Unreal Trail',
+                    # 'Mount Juliet, TN 37122                Address      PO Box 131165',
+                    # 'United States                                      Ann Arbor, MI 48113',
+                    # 'United States',
+                    # ''
+                    # ]
                     buyer_address = '\n'.join([l.split('     ')[0] for l in addresses][0:-1])
+                    
                     if 'United States' in buyer_address:
-                        #if 'Canada' in buyer_address:
-                        #    raise Exception(buyer_address)
                         address = buyer_address.split('United States', 1)[0].strip().replace("  ", "")
                         Order.country = 'USA'
                     elif 'Puerto Rico' in buyer_address:
@@ -166,7 +187,7 @@ def main(verbose):
                     # Calculate costs
                     num_total_placemats = Order.num_penny_placemats + Order.num_nickel_placemats + Order.num_silver_stacking_placemats
                     # total retail price is the 4th value from the end minus the dollar sign
-                    Order.retail_price = float(order.split()[-4][1:])
+                    Order.retail_price = float(order.split('This is not a bill.')[0].split()[-2][1:])
                     if Order.country == 'USA':
                         Order.paypal_fees = (49 + round(0.0349 * Order.retail_price * 100)) / 100
                     if Order.country == 'Canada':
@@ -330,7 +351,13 @@ Shipping Cost: ${:,.2f}
            silver_stacking_placemats_needed, hats_needed, len(packages), shipping_cost)
     )
 
+    if not all(isinstance(e, str) for e in untracked_emails):
+        print("WARNING: not all untracked emails were parsed properly. See warnings above for more info\n")
+        untracked_emails = [e for e in untracked_emails if isinstance(e, str)]
     print('untracked emails: %s\n' % ', '.join(untracked_emails))
+    if not all(isinstance(e, str) for e in tracked_emails):
+        print("WARNING: not all tracked emails were parsed properly. See warnings above for more info\n")
+        tracked_emails = [e for e in tracked_emails if isinstance(e, str)]
     print('tracked emails: %s\n' % ', '.join(tracked_emails))
 
     if duplicate_name_packages:
