@@ -62,11 +62,11 @@ NUM_PLACEMATS_TO_SHIPPING_COST = {
         '9': 10.00,
     },
     'Canada': {
-        '1': 3.89,
-        '2': 4.74,
-        '3': 6.41,
-        '4': 6.41,
-        '5': 7.80,
+        '1': 4.12,
+        '2': 5.02,
+        '3': 6.79,
+        '4': 6.79,
+        '5': 8.27,
         # 6 or more placemats to Canada cannot be done
     }
 }
