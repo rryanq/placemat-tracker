@@ -7,6 +7,7 @@ import pdftotext
 from itertools import groupby
 from copy import deepcopy
 from difflib import SequenceMatcher
+from decimal import Decimal, ROUND_HALF_UP
 
 
 class PaypalOrder():
@@ -15,6 +16,7 @@ class PaypalOrder():
     num_penny_placemats = 0
     num_nickel_placemats = 0
     num_silver_stacking_placemats = 0
+    num_dollar_coin_placemats = 0
     num_hats = 0
     customer_name = None
     email_address = None
@@ -31,6 +33,7 @@ class Package():
     num_penny_placemats = 0
     num_nickel_placemats = 0
     num_silver_stacking_placemats = 0
+    num_dollar_coin_placemats = 0
     num_hats = 0
     num_total_placemats = 0
     customer_name = None
@@ -120,10 +123,13 @@ def main(verbose):
                             Order.num_nickel_placemats += item_quantity
                         elif item_code == 'S1':
                             Order.num_silver_stacking_placemats += item_quantity
+                        elif item_code == 'D1':
+                            Order.num_dollar_coin_placemats += item_quantity
                         elif item_code == 'M1':
                             Order.num_penny_placemats += item_quantity
                             Order.num_nickel_placemats += item_quantity
                             Order.num_silver_stacking_placemats += item_quantity
+                            Order.num_dollar_coin_placemats += item_quantity
                         elif item_code == 'H1':
                             Order.num_hats += item_quantity
                         elif item_code == 'Select':
@@ -185,11 +191,12 @@ def main(verbose):
                     Order.mailing_address = address.replace("\n ", "\n").strip()
 
                     # Calculate costs
-                    num_total_placemats = Order.num_penny_placemats + Order.num_nickel_placemats + Order.num_silver_stacking_placemats
+                    num_total_placemats = Order.num_penny_placemats + Order.num_nickel_placemats + Order.num_silver_stacking_placemats + Order.num_dollar_coin_placemats
                     # total retail price is the 4th value from the end minus the dollar sign
-                    Order.retail_price = float(order.split('This is not a bill.')[0].split()[-2][1:])
+                    Order.retail_price = Decimal(order.split('This is not a bill.')[0].split()[-2][1:])
                     if Order.country == 'USA':
-                        Order.paypal_fees = (49 + round(0.0349 * Order.retail_price * 100)) / 100
+                        paypal_variable_fees_cents = Decimal(str(Decimal(0.0349) * Order.retail_price * 100))
+                        Order.paypal_fees = Decimal(str((49 + paypal_variable_fees_cents) / 100)).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
                     if Order.country == 'Canada':
                         # Paypal fee for orders to Canada (3.49% of transaction amount (in USD) + $0.59 CAD,
                         # rounded to nearest cent). Note: $0.59 CAD may correspond to a different USD value
@@ -198,7 +205,8 @@ def main(verbose):
                         # the U.S. fees: 3.49% of transaction amount + $0.49 USD
                         # FIXME: now, it appears that Canadian fees will be more like this: 3.49% + $0.59 CAD + additional 1.50% international commericial transaction fee
                         # but even with this, it seems to be off by a few cents and I'm not sure why
-                        Order.paypal_fees = (49 + round(0.0349 * Order.retail_price * 100)) / 100
+                        paypal_variable_fees_cents = Decimal(str(Decimal(0.0349) * Order.retail_price * 100))
+                        Order.paypal_fees = Decimal(str((49 + paypal_variable_fees_cents) / 100)).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
                     Order.net_income = Order.retail_price - Order.paypal_fees
                     total_revenue += Order.retail_price
                     total_net_income += Order.net_income
@@ -208,6 +216,9 @@ def main(verbose):
                 print("Unable to process the following file: {}".format(file))
                 if verbose:
                     print(traceback.format_exc(e))
+    # DEBUG
+    #for order in paypal_orders:
+    #    print(f"order code: {order.order_code}, revenue after paypal fees: {order.net_income}")
 
     # FIXME: consider grouping by name instead because grouping by address is 
     # looking like it will be too complicated
@@ -233,8 +244,9 @@ def main(verbose):
             package.num_penny_placemats += o.num_penny_placemats
             package.num_nickel_placemats += o.num_nickel_placemats
             package.num_silver_stacking_placemats += o.num_silver_stacking_placemats
+            package.num_dollar_coin_placemats += o.num_dollar_coin_placemats
             package.num_hats += o.num_hats
-        num_total_placemats = package.num_penny_placemats + package.num_nickel_placemats + package.num_silver_stacking_placemats
+        num_total_placemats = package.num_penny_placemats + package.num_nickel_placemats + package.num_silver_stacking_placemats + package.num_dollar_coin_placemats
         package.num_total_placemats = num_total_placemats
         # hats get shipped in packages that are separate from placemats
         if package.num_hats > 0:
@@ -244,6 +256,7 @@ def main(verbose):
             hat_package.num_penny_placemats = 0
             hat_package.num_nickel_placemats = 0
             hat_package.num_silver_stacking_placemats = 0
+            hat_package.num_dollar_coin_placemats = 0
             hat_package.num_total_placemats = 0
             hat_package.order_code = 'H1'
             if hat_package.country == 'USA':
@@ -272,10 +285,11 @@ def main(verbose):
                 raise Exception('Unable to retrieve shipping cost for %s placemats to %s' % (
                     placemat_package.num_total_placemats, placemat_package.country
                 ))
-            placemat_package.order_code = '%s%s%s' % (
+            placemat_package.order_code = '%s%s%s%s' % (
                 ('P' + str(placemat_package.num_penny_placemats)) if placemat_package.num_penny_placemats else '',
                 ('N' + str(placemat_package.num_nickel_placemats)) if placemat_package.num_nickel_placemats else '',
                 ('S' + str(placemat_package.num_silver_stacking_placemats)) if placemat_package.num_silver_stacking_placemats else '',
+                ('D' + str(placemat_package.num_dollar_coin_placemats)) if placemat_package.num_dollar_coin_placemats else '',
             )
             if placemat_package.num_total_placemats > 4 and placemat_package.num_total_placemats < 10:
                 # priority mail
@@ -292,6 +306,7 @@ def main(verbose):
     penny_placemats_needed = sum([p.num_penny_placemats for p in packages])
     nickel_placemats_needed = sum([p.num_nickel_placemats for p in packages])
     silver_stacking_placemats_needed = sum([p.num_silver_stacking_placemats for p in packages])
+    dollar_coin_placemats_needed = sum([p.num_dollar_coin_placemats for p in packages])
     hats_needed = sum([p.num_hats for p in packages])
 
     # approximate cost of shipping
@@ -342,13 +357,15 @@ IMPORTANT STATS
 Penny Placemats Needed: {}
 Nickel Placemats Needed: {}
 Silver Stacking Placemats Needed: {}
+Dollar Coin Placemats Needed: {}
 Hats Needed: {}
 Total Packages: {}
 
 Shipping Cost: ${:,.2f}
 =============================
 """.format(total_revenue, total_net_income, penny_placemats_needed, nickel_placemats_needed, 
-           silver_stacking_placemats_needed, hats_needed, len(packages), shipping_cost)
+           silver_stacking_placemats_needed, dollar_coin_placemats_needed, hats_needed,
+           len(packages), shipping_cost)
     )
 
     if not all(isinstance(e, str) for e in untracked_emails):
