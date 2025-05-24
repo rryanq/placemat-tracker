@@ -30,6 +30,7 @@ class ShopifyOrder():
     mailing_address = None
     country = None
     retail_price = 0
+    is_shop_order = False
 
 
 class Package():
@@ -47,6 +48,7 @@ class Package():
     country = None
     shipping_cost = 0
     shipping_class = None
+    is_shop_order = False
 
 
 # the cost to ship a single hat varies, but is typically around $4
@@ -71,7 +73,7 @@ NUM_PLACEMATS_TO_SHIPPING_COST = {
     },
     # FIXME: not sure if it shows up as "Canada" in csv, or something else. Will need
     # to fill this in once someone from Canada places an order
-    'Canada': {
+    'CA': {
         '1': 4.12,
         '2': 5.02,
         '3': 6.79,
@@ -141,6 +143,7 @@ def main():
             order = ShopifyOrder()
             sku = row.Lineitem_sku
             item_quantity = int(row.Lineitem_quantity)
+            order.is_shop_order = 'Shop Cash' in row.Payment_Method
 
             order.order_code = sku
             order.customer_name = row.Shipping_Name
@@ -190,6 +193,7 @@ def main():
             package.country = o.country
             package.customer_name = o.customer_name
             package.email_address = o.email_address
+            package.is_shop_order = o.is_shop_order
             package.num_penny_placemats += o.num_penny_placemats
             package.num_nickel_placemats += o.num_nickel_placemats
             package.num_silver_stacking_placemats += o.num_silver_stacking_placemats
@@ -208,7 +212,7 @@ def main():
             hat_package.num_dollar_coin_placemats = 0
             hat_package.num_total_placemats = 0
             hat_package.order_code = 'H1'
-            if hat_package.country == 'USA':
+            if hat_package.country == 'USA' or hat_package.country == 'US':
                 hat_package.shipping_cost = SINGLE_HAT_SHIPPING_COST_USA
             elif hat_package.country == 'Canada':
                 hat_package.shipping_cost = SINGLE_HAT_SHIPPING_COST_CANADA
@@ -240,12 +244,16 @@ def main():
                 ('S' + str(placemat_package.num_silver_stacking_placemats)) if placemat_package.num_silver_stacking_placemats else '',
                 ('D' + str(placemat_package.num_dollar_coin_placemats)) if placemat_package.num_dollar_coin_placemats else '',
             )
-            if placemat_package.num_total_placemats > 4 and placemat_package.num_total_placemats < 10:
-                # priority mail
-                placemat_package.shipping_class = 'priority'
-            else:
+
+            if (not placemat_package.is_shop_order) and \
+               placemat_package.num_total_placemats < 5 or \
+               (placemat_package.num_total_placemats == 5 and placemat_package.country == 'CA'):
                 # first class mail
                 placemat_package.shipping_class = 'first_class'
+            else:
+                # priority mail
+                placemat_package.shipping_class = 'priority'
+                placemat_package.shipping_cost = 10.00
             packages.append(placemat_package)
     
     # DEBUG
