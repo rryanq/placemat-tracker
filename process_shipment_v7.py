@@ -59,10 +59,10 @@ SINGLE_HAT_SHIPPING_COST_USA = 4.00
 SINGLE_HAT_SHIPPING_COST_CANADA = 14.85
 NUM_PLACEMATS_TO_SHIPPING_COST = {
     'US': {
-        '1': 2.31,
-        '2': 3.15,
-        '3': 3.71,
-        '4': 4.61,
+        '1': 2.44,
+        '2': 3.28,
+        '3': 3.84,
+        '4': 4.74,
         # packages of 5 or 6 placemats must be sent via priority which doesn't
         # have a set price, but can cost up to $10
         '5': 10.00,
